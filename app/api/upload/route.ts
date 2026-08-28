@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { MAX_PAGES } from "@/lib/constants";
+import { chunkPages } from "@/lib/chunk";
+import { embedTexts } from "@/lib/embeddings";
+import { getChunksCollection } from "@/lib/mongodb";
+import type { ChunkDoc } from "@/lib/types";
 import type { ApiError, UploadRequest, UploadResponse } from "@/lib/api-types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 /**
  * POST /api/upload
  *
- * Receives text already extracted from a PDF in the browser (see lib/pdf.ts).
- * F1 validates the payload and returns a documentId. The chunking + embedding
- * pipeline is wired in F2.
+ * Receives text already extracted from a PDF in the browser (see lib/pdf.ts),
+ * chunks it, embeds each chunk with Gemini and stores the vectors in MongoDB
+ * Atlas. Returns a documentId used to scope subsequent chat queries.
  */
 export async function POST(req: Request): Promise<NextResponse<UploadResponse | ApiError>> {
   let body: UploadRequest;
@@ -36,11 +41,39 @@ export async function POST(req: Request): Promise<NextResponse<UploadResponse | 
   }
 
   const documentId = randomUUID();
+  const chunks = chunkPages(pages);
+  if (chunks.length === 0) {
+    return NextResponse.json({ error: "No extractable text found in the PDF" }, { status: 400 });
+  }
 
-  return NextResponse.json({
-    documentId,
-    filename,
-    pageCount: pages.length,
-    chunkCount: 0,
-  });
+  try {
+    const embeddings = await embedTexts(chunks.map((c) => c.text));
+
+    const now = new Date();
+    const docs: ChunkDoc[] = chunks.map((chunk, i) => ({
+      documentId,
+      filename,
+      pageNumber: chunk.pageNumber,
+      chunkIndex: chunk.chunkIndex,
+      text: chunk.text,
+      embedding: embeddings[i] ?? [],
+      createdAt: now,
+    }));
+
+    const collection = await getChunksCollection();
+    await collection.insertMany(docs);
+
+    return NextResponse.json({
+      documentId,
+      filename,
+      pageCount: pages.length,
+      chunkCount: docs.length,
+    });
+  } catch (err) {
+    console.error("upload pipeline failed", err);
+    return NextResponse.json(
+      { error: "Failed to process the document" },
+      { status: 500 },
+    );
+  }
 }
