@@ -195,6 +195,11 @@ Beyond the core F1–F6 requirements:
   > test; a production deploy would back it with Redis (e.g. Upstash).
 - **Tests** — pure-function unit tests for chunking, prompt building, re-ranking and
   the rate limiter (`tests/`, `npm test`).
+- **Multilingual (FR/AR)** — Unicode-safe extraction, tokenizer and multilingual
+  embeddings; the model answers in the question's language. French is verified end
+  to end; Arabic works via the same path. Details in
+  [`TECH_STACK.md`](TECH_STACK.md#multilingual-fr--ar). Generate the samples with
+  `node scripts/make-sample-pdfs.mjs`.
 - **No heavy RAG framework** — direct AI SDK + Mongo driver instead of LangChain/
   LlamaIndex; rationale in [`TECH_STACK.md`](TECH_STACK.md#why-not-langchain--llamaindex).
 

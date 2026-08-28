@@ -66,3 +66,24 @@ If the pipeline grew (many loaders, agents, tool-calling, a retriever zoo), a
 framework would start to pay for itself — LlamaIndex in particular for ingestion
 breadth. For a single-provider, single-store RAG app, direct SDKs are the simpler,
 clearer choice.
+
+## Multilingual (FR / AR)
+
+The pipeline is language-agnostic end to end:
+
+- **Extraction** — `unpdf` returns Unicode text; French accents survive the round
+  trip (verified on `docs/sample/fr.pdf`).
+- **Tokenizer** — the lexical re-ranker splits on `\p{L}` / `\p{N}` (any Unicode
+  letter or digit), so French accents and Arabic script tokenize correctly — no
+  `[a-z]` assumptions (`tests/multilingual.test.ts`).
+- **Embeddings** — `gemini-embedding-001` is multilingual, so semantic retrieval
+  works across languages.
+- **Generation** — the system prompt instructs the model to *answer in the same
+  language as the question*.
+
+**French** is generated and evaluated end to end (`docs/sample/fr.pdf`, see
+`EVAL.md`). **Arabic** works via the same path; it isn't generated as a sample
+because correct Arabic PDFs need right-to-left text shaping (HarfBuzz) that
+pdf-lib's standard fonts don't provide. Drop a real text-based Arabic PDF into
+`docs/sample/` and it flows through unchanged — the one caveat is that the source
+must embed real Unicode text (not a scanned image or glyph-flattened outlines).
