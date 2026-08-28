@@ -56,7 +56,9 @@ export function ChatPanel({ documentId }: { documentId: string }) {
         ))}
 
         {awaitingFirstToken && <p className="text-sm text-muted">Thinking…</p>}
-        {error && <p className="text-sm text-red-600">Something went wrong. Please try again.</p>}
+        {error && (
+          <p className="text-sm text-red-600">{error.message || "Something went wrong. Please try again."}</p>
+        )}
       </div>
 
       <form

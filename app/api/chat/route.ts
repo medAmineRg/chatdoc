@@ -50,6 +50,8 @@ export async function POST(req: Request) {
         model: chatModel(),
         system: buildSystemPrompt(chunks),
         messages: convertToCoreMessages(messages),
+        // Don't retry: on a 429 the default retries just burn more quota.
+        maxRetries: 0,
         // Write sources after the answer so the annotation attaches to an
         // existing assistant message (writing it first breaks useChat parsing).
         onFinish: () => {
@@ -60,6 +62,10 @@ export async function POST(req: Request) {
     },
     onError: (error) => {
       console.error("chat stream failed", error);
+      const status = (error as { statusCode?: number })?.statusCode;
+      if (status === 429) {
+        return "The model is rate-limited (free-tier quota reached). Please wait a moment and try again.";
+      }
       return "Failed to generate an answer";
     },
   });
