@@ -1,13 +1,19 @@
 import { getChunksCollection, VECTOR_INDEX_NAME } from "@/lib/mongodb";
 import { embedQuery } from "@/lib/embeddings";
+import { hybridRerank } from "@/lib/rerank";
 import type { RetrievedChunk } from "@/lib/types";
 
 export const DEFAULT_TOP_K = 5;
+/** Over-fetch factor: pull this many × topK vector hits, then re-rank down. */
+export const CANDIDATE_MULTIPLIER = 4;
 
 /**
- * Retrieve the most similar chunks to `question` within a document using
- * Atlas Vector Search (cosine). The `$vectorSearchScore` is returned so the
- * frontend can display source relevance (F4).
+ * Retrieve the most relevant chunks to `question` within a document.
+ *
+ * Runs Atlas Vector Search (cosine) to pull a wider candidate set, then applies
+ * hybrid re-ranking (dense vector + lexical, fused via RRF) to pick the final
+ * top-k. The `$vectorSearchScore` is preserved so the frontend can display
+ * source relevance (F4).
  */
 export async function retrieveChunks(
   documentId: string,
@@ -17,15 +23,16 @@ export async function retrieveChunks(
   const queryVector = await embedQuery(question);
   const chunks = await getChunksCollection();
 
-  const results = await chunks
+  const candidateLimit = topK * CANDIDATE_MULTIPLIER;
+  const candidates = await chunks
     .aggregate<RetrievedChunk>([
       {
         $vectorSearch: {
           index: VECTOR_INDEX_NAME,
           path: "embedding",
           queryVector,
-          numCandidates: Math.max(topK * 20, 100),
-          limit: topK,
+          numCandidates: Math.max(candidateLimit * 20, 100),
+          limit: candidateLimit,
           filter: { documentId },
         },
       },
@@ -43,5 +50,5 @@ export async function retrieveChunks(
     ])
     .toArray();
 
-  return results;
+  return hybridRerank(candidates, question, topK);
 }
