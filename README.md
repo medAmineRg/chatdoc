@@ -69,8 +69,11 @@ cut. Documents are chunked **page by page** so every chunk keeps its source page
 number for citations. Overlap preserves context that straddles a boundary.
 
 **Retrieval** (`lib/retrieval.ts`) — the question is embedded with the same model,
-then Atlas `$vectorSearch` (cosine) returns the top **5** chunks filtered by
-`documentId`, each with its `vectorSearchScore`.
+then Atlas `$vectorSearch` (cosine) pulls a wider candidate set filtered to the
+selected `documentId`s (one **or many** — cross-document Q&A). Candidates are
+**hybrid re-ranked** (`lib/rerank.ts`): the dense-vector ranking is fused with a
+lexical keyword ranking via Reciprocal Rank Fusion, and the top **5** are kept —
+each still carrying its `vectorSearchScore` for display.
 
 **Generation** (`lib/prompt.ts`) — the retrieved chunks are injected into a system
 prompt that instructs the model to answer **only** from the context and to say
@@ -90,19 +93,21 @@ Response `200`:
 ```json
 { "documentId": "uuid", "filename": "report.pdf", "pageCount": 3, "chunkCount": 7 }
 ```
-Errors: `400` invalid body, `413` too many pages / too large, `500` pipeline failure.
+Errors: `400` invalid body, `413` too many pages / too large, `429` rate limited
+(with `Retry-After`), `500` pipeline failure.
 
 ### `POST /api/chat`
-Request:
+Request (`documentIds` may list one or more uploaded documents):
 ```json
-{ "documentId": "uuid", "messages": [{ "role": "user", "content": "…" }] }
+{ "documentIds": ["uuid"], "messages": [{ "role": "user", "content": "…" }] }
 ```
 Response: an AI SDK **data stream** (SSE). The assistant answer streams as text;
 the retrieved sources are attached as a message annotation:
 ```json
-{ "type": "sources", "sources": [{ "pageNumber": 2, "chunkIndex": 4, "text": "…", "score": 0.83 }] }
+{ "type": "sources", "sources": [{ "filename": "report.pdf", "pageNumber": 2, "chunkIndex": 4, "text": "…", "score": 0.83 }] }
 ```
-Errors: `400` invalid body (with per-field `details`), `500` generation failure.
+Errors: `400` invalid body (with per-field `details`), `429` rate limited (with
+`Retry-After`), `500` generation failure.
 
 ---
 
@@ -169,13 +174,29 @@ node --env-file=.env.local scripts/create-index.mjs
 | `npm run build` | Production build |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm run lint` | Next.js lint |
+| `npm test` | Unit tests (vitest) |
 
 ---
 
-## Sample PDF
+## Bonus features
 
-Place a royalty-free PDF you used for testing at `docs/sample.pdf` and reference
-it here so reviewers can reproduce your results.
+Beyond the core F1–F6 requirements:
+
+- **Hybrid retrieval / re-ranking** — vector hits are fused with a lexical keyword
+  ranking via Reciprocal Rank Fusion (`lib/rerank.ts`), improving recall for exact
+  terms (names, codes, amounts) that pure vector search can miss.
+- **Multi-document Q&A** — upload several PDFs and query across any selected subset;
+  sources cite which file each passage came from.
+- **Rate limiting + structured logging** — per-client fixed-window limits on both
+  endpoints (`429` + `Retry-After`) and one-JSON-line-per-event logs with a request
+  id and latency (`lib/rate-limit.ts`, `lib/logger.ts`).
+  > **Limitation:** the limiter is in-memory, so on a multi-instance serverless
+  > deploy each instance counts independently. It's a best-effort guard for this
+  > test; a production deploy would back it with Redis (e.g. Upstash).
+- **Tests** — pure-function unit tests for chunking, prompt building, re-ranking and
+  the rate limiter (`tests/`, `npm test`).
+- **No heavy RAG framework** — direct AI SDK + Mongo driver instead of LangChain/
+  LlamaIndex; rationale in [`TECH_STACK.md`](TECH_STACK.md#why-not-langchain--llamaindex).
 
 ## Requirements coverage
 
