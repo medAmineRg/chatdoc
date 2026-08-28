@@ -44,7 +44,14 @@ export async function POST(req: Request): Promise<NextResponse<ChatResponse | Ap
       messages,
     });
 
-    return NextResponse.json({ answer: text });
+    const sources = chunks.map(({ pageNumber, chunkIndex, text: chunkText, score }) => ({
+      pageNumber,
+      chunkIndex,
+      text: chunkText,
+      score,
+    }));
+
+    return NextResponse.json({ answer: text, sources });
   } catch (err) {
     console.error("chat failed", err);
     return NextResponse.json({ error: "Failed to generate an answer" }, { status: 500 });

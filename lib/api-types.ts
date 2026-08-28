@@ -1,4 +1,5 @@
 import type { ParsedPage } from "@/lib/pdf";
+import type { RetrievedChunk } from "@/lib/types";
 
 export interface UploadRequest {
   filename: string;
@@ -27,6 +28,9 @@ export interface ChatRequest {
   messages: ChatMessage[];
 }
 
+export type Source = Omit<RetrievedChunk, "documentId" | "filename">;
+
 export interface ChatResponse {
   answer: string;
+  sources: Source[];
 }

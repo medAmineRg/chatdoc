@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { ApiError, ChatMessage, ChatResponse } from "@/lib/api-types";
+import type { ApiError, ChatMessage, ChatResponse, Source } from "@/lib/api-types";
+import { Sources } from "@/components/Sources";
+
+interface UiMessage extends ChatMessage {
+  sources?: Source[];
+}
 
 export function ChatPanel({ documentId }: { documentId: string }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<UiMessage[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>("");
@@ -13,7 +18,7 @@ export function ChatPanel({ documentId }: { documentId: string }) {
     const question = input.trim();
     if (question.length === 0 || pending) return;
 
-    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: question }];
+    const nextMessages: UiMessage[] = [...messages, { role: "user", content: question }];
     setMessages(nextMessages);
     setInput("");
     setError("");
@@ -23,7 +28,10 @@ export function ChatPanel({ documentId }: { documentId: string }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId, messages: nextMessages }),
+        body: JSON.stringify({
+          documentId,
+          messages: nextMessages.map(({ role, content }) => ({ role, content })),
+        }),
       });
 
       if (!res.ok) {
@@ -33,7 +41,10 @@ export function ChatPanel({ documentId }: { documentId: string }) {
       }
 
       const data = (await res.json()) as ChatResponse;
-      setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.answer, sources: data.sources },
+      ]);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -51,14 +62,17 @@ export function ChatPanel({ documentId }: { documentId: string }) {
         )}
         {messages.map((m, i) => (
           <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div
-              className={
-                m.role === "user"
-                  ? "max-w-[80%] whitespace-pre-wrap rounded-lg bg-brand-blue px-3 py-2 text-sm text-white"
-                  : "max-w-[80%] whitespace-pre-wrap rounded-lg bg-brand-blue-soft px-3 py-2 text-sm text-ink"
-              }
-            >
-              {m.content}
+            <div className={m.role === "user" ? "max-w-[80%]" : "max-w-[80%]"}>
+              <div
+                className={
+                  m.role === "user"
+                    ? "whitespace-pre-wrap rounded-lg bg-brand-blue px-3 py-2 text-sm text-white"
+                    : "whitespace-pre-wrap rounded-lg bg-brand-blue-soft px-3 py-2 text-sm text-ink"
+                }
+              >
+                {m.content}
+              </div>
+              {m.role === "assistant" && m.sources && <Sources sources={m.sources} />}
             </div>
           </div>
         ))}
