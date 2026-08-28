@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-navy: #16244a;
+  --brand-blue: #2b5ca8;
+  --brand-blue-soft: #eaf0fa;
+  --ink: #1a2233;
+  --muted: #6b7280;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  color: var(--ink);
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}

@@ -1,6 +1,13 @@
 node_modules/
 .next/
-.env*
+out/
+build/
+.env
+.env.local
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
 
 # Confidential test subject — do not commit
 Test_Technique_FullStack_IA_Smartly.pdf
