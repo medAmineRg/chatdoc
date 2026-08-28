@@ -1,0 +1,15 @@
+{
+  "_comment": "Atlas Vector Search index for the 'chunks' collection. Create it in Atlas UI (Search > Create Search Index > JSON editor) or via the Atlas API. Name it 'vector_index' to match VECTOR_INDEX_NAME in lib/mongodb.ts.",
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 768,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "documentId"
+    }
+  ]
+}
