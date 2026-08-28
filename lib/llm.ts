@@ -1,7 +1,8 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { env } from "@/lib/env";
 
-export const CHAT_MODEL = "gemini-2.0-flash";
+/** Chat model, overridable via env so it can track the current Gemini flash alias. */
+export const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-flash-latest";
 
 /** Gemini chat model used for answer generation. */
 export function chatModel() {

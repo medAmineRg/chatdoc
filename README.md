@@ -48,9 +48,9 @@ Vercel.
 | Framework | Next.js 15 App Router | Frontend + serverless API in one repo, first-class streaming, zero-config Vercel deploy. |
 | Language | TypeScript, `strict` + `noUncheckedIndexedAccess` | Catches the class of bugs (undefined array access) that RAG glue code is prone to. |
 | PDF parsing | `unpdf`, **client-side** | Serverless-safe pdf.js build, no worker setup. Trade-off: no server-side control of parsing, but avoids the body/timeout limits above. |
-| Embeddings | Gemini `text-embedding-004` (768-dim) | Generous free tier; one provider for embeddings + generation. |
+| Embeddings | Gemini `gemini-embedding-001`, reduced to 768-dim | Generous free tier; one provider for embeddings + generation. Task-type-aware (RETRIEVAL_DOCUMENT vs RETRIEVAL_QUERY) for better retrieval. |
 | Vector store | MongoDB Atlas Vector Search | One store for documents **and** vectors — no separate vector DB to sync. `$vectorSearch` returns the cosine score directly, which we surface as sources. |
-| LLM | Gemini `gemini-2.0-flash` via Vercel AI SDK | Fast, cheap, strong enough for grounded Q&A; AI SDK gives token streaming with minimal plumbing. |
+| LLM | Gemini `gemini-flash-latest` via Vercel AI SDK | Fast, cheap, strong enough for grounded Q&A; AI SDK gives token streaming with minimal plumbing. Model is env-overridable. |
 | Validation | Zod | Runtime validation at the API boundary → structured errors. |
 
 **Serverless connection handling:** MongoDB uses persistent TCP connections,
@@ -139,7 +139,14 @@ Create a Vector Search index named **`vector_index`** on the `chunks` collection
 }
 ```
 
-The 768 dimensions must match the Gemini `text-embedding-004` output.
+The 768 dimensions must match the embedding output (`gemini-embedding-001` is
+reduced to 768 via `outputDimensionality`).
+
+You can create the index programmatically instead:
+
+```bash
+node --env-file=.env.local scripts/create-index.mjs
+```
 
 ---
 
