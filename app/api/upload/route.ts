@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { MAX_PAGES } from "@/lib/constants";
 import { chunkPages } from "@/lib/chunk";
 import { embedTexts } from "@/lib/embeddings";
 import { getChunksCollection } from "@/lib/mongodb";
+import { MAX_TOTAL_CHARS, jsonError, uploadSchema, zodDetails } from "@/lib/validation";
 import type { ChunkDoc } from "@/lib/types";
-import type { ApiError, UploadRequest, UploadResponse } from "@/lib/api-types";
+import type { ApiError, UploadResponse } from "@/lib/api-types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,34 +16,32 @@ export const maxDuration = 60;
  * Receives text already extracted from a PDF in the browser (see lib/pdf.ts),
  * chunks it, embeds each chunk with Gemini and stores the vectors in MongoDB
  * Atlas. Returns a documentId used to scope subsequent chat queries.
+ *
+ * Errors use a consistent shape: { error, details? } with correct HTTP codes.
  */
 export async function POST(req: Request): Promise<NextResponse<UploadResponse | ApiError>> {
-  let body: UploadRequest;
+  let raw: unknown;
   try {
-    body = (await req.json()) as UploadRequest;
+    raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonError(400, "Invalid JSON body");
   }
 
-  const { filename, pages } = body;
+  const parsed = uploadSchema.safeParse(raw);
+  if (!parsed.success) {
+    return jsonError(400, "Invalid request", zodDetails(parsed.error));
+  }
+  const { filename, pages } = parsed.data;
 
-  if (typeof filename !== "string" || filename.length === 0) {
-    return NextResponse.json({ error: "filename is required" }, { status: 400 });
-  }
-  if (!Array.isArray(pages) || pages.length === 0) {
-    return NextResponse.json({ error: "No extractable text found in the PDF" }, { status: 400 });
-  }
-  if (pages.length > MAX_PAGES) {
-    return NextResponse.json(
-      { error: `Document has too many pages (max ${MAX_PAGES})` },
-      { status: 413 },
-    );
+  const totalChars = pages.reduce((sum, p) => sum + p.text.length, 0);
+  if (totalChars > MAX_TOTAL_CHARS) {
+    return jsonError(413, "Document is too large to process");
   }
 
   const documentId = randomUUID();
   const chunks = chunkPages(pages);
   if (chunks.length === 0) {
-    return NextResponse.json({ error: "No extractable text found in the PDF" }, { status: 400 });
+    return jsonError(400, "No extractable text found in the PDF");
   }
 
   try {
@@ -71,9 +69,6 @@ export async function POST(req: Request): Promise<NextResponse<UploadResponse | 
     });
   } catch (err) {
     console.error("upload pipeline failed", err);
-    return NextResponse.json(
-      { error: "Failed to process the document" },
-      { status: 500 },
-    );
+    return jsonError(500, "Failed to process the document");
   }
 }

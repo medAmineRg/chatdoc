@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
 import { convertToCoreMessages, createDataStreamResponse, streamText } from "ai";
 import { chatModel } from "@/lib/llm";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { retrieveChunks } from "@/lib/retrieval";
-import type { ApiError, ChatRequest, Source } from "@/lib/api-types";
+import { chatSchema, jsonError, zodDetails } from "@/lib/validation";
+import type { Source } from "@/lib/api-types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,24 +17,22 @@ export const maxDuration = 60;
  * render them alongside the streamed answer.
  */
 export async function POST(req: Request) {
-  let body: ChatRequest;
+  let raw: unknown;
   try {
-    body = (await req.json()) as ChatRequest;
+    raw = await req.json();
   } catch {
-    return NextResponse.json<ApiError>({ error: "Invalid JSON body" }, { status: 400 });
+    return jsonError(400, "Invalid JSON body");
   }
 
-  const { documentId, messages } = body;
-  if (typeof documentId !== "string" || documentId.length === 0) {
-    return NextResponse.json<ApiError>({ error: "documentId is required" }, { status: 400 });
+  const parsed = chatSchema.safeParse(raw);
+  if (!parsed.success) {
+    return jsonError(400, "Invalid request", zodDetails(parsed.error));
   }
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return NextResponse.json<ApiError>({ error: "messages is required" }, { status: 400 });
-  }
+  const { documentId, messages } = parsed.data;
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUser) {
-    return NextResponse.json<ApiError>({ error: "No user message found" }, { status: 400 });
+    return jsonError(400, "No user message found");
   }
 
   return createDataStreamResponse({
