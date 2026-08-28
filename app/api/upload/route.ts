@@ -3,9 +3,18 @@ import { randomUUID } from "node:crypto";
 import { chunkPages } from "@/lib/chunk";
 import { embedTexts } from "@/lib/embeddings";
 import { getChunksCollection } from "@/lib/mongodb";
+import { log } from "@/lib/logger";
+import { UPLOAD_LIMIT, checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { MAX_TOTAL_CHARS, jsonError, uploadSchema, zodDetails } from "@/lib/validation";
 import type { ChunkDoc } from "@/lib/types";
 import type { ApiError, UploadResponse } from "@/lib/api-types";
+
+/** 429 response carrying a Retry-After header (seconds). */
+function rateLimited(retryAfterS: number): NextResponse<ApiError> {
+  const res = jsonError(429, "Too many requests. Please slow down.");
+  res.headers.set("Retry-After", String(retryAfterS));
+  return res;
+}
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,6 +29,15 @@ export const maxDuration = 60;
  * Errors use a consistent shape: { error, details? } with correct HTTP codes.
  */
 export async function POST(req: Request): Promise<NextResponse<UploadResponse | ApiError>> {
+  const requestId = randomUUID();
+  const startedAt = Date.now();
+
+  const limit = checkRateLimit(clientKey(req), UPLOAD_LIMIT);
+  if (!limit.ok) {
+    log("warn", "upload.rate_limited", { requestId, retryAfterS: limit.retryAfterS });
+    return rateLimited(limit.retryAfterS);
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();
@@ -61,6 +79,14 @@ export async function POST(req: Request): Promise<NextResponse<UploadResponse | 
     const collection = await getChunksCollection();
     await collection.insertMany(docs);
 
+    log("info", "upload.ok", {
+      requestId,
+      documentId,
+      pageCount: pages.length,
+      chunkCount: docs.length,
+      durationMs: Date.now() - startedAt,
+    });
+
     return NextResponse.json({
       documentId,
       filename,
@@ -68,7 +94,11 @@ export async function POST(req: Request): Promise<NextResponse<UploadResponse | 
       chunkCount: docs.length,
     });
   } catch (err) {
-    console.error("upload pipeline failed", err);
+    log("error", "upload.failed", {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return jsonError(500, "Failed to process the document");
   }
 }

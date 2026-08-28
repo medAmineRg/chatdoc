@@ -1,12 +1,23 @@
 import { convertToCoreMessages, createDataStreamResponse, streamText } from "ai";
+import { randomUUID } from "node:crypto";
+import { NextResponse } from "next/server";
 import { chatModel } from "@/lib/llm";
+import { log } from "@/lib/logger";
 import { buildSystemPrompt } from "@/lib/prompt";
+import { CHAT_LIMIT, checkRateLimit, clientKey } from "@/lib/rate-limit";
 import { retrieveChunks } from "@/lib/retrieval";
 import { chatSchema, jsonError, zodDetails } from "@/lib/validation";
-import type { Source } from "@/lib/api-types";
+import type { ApiError, Source } from "@/lib/api-types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+/** 429 response carrying a Retry-After header (seconds). */
+function rateLimited(retryAfterS: number): NextResponse<ApiError> {
+  const res = jsonError(429, "Too many requests. Please slow down.");
+  res.headers.set("Retry-After", String(retryAfterS));
+  return res;
+}
 
 /**
  * POST /api/chat
@@ -17,6 +28,15 @@ export const maxDuration = 60;
  * render them alongside the streamed answer.
  */
 export async function POST(req: Request) {
+  const requestId = randomUUID();
+  const startedAt = Date.now();
+
+  const limit = checkRateLimit(clientKey(req), CHAT_LIMIT);
+  if (!limit.ok) {
+    log("warn", "chat.rate_limited", { requestId, retryAfterS: limit.retryAfterS });
+    return rateLimited(limit.retryAfterS);
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();
@@ -38,6 +58,11 @@ export async function POST(req: Request) {
   return createDataStreamResponse({
     execute: async (dataStream) => {
       const chunks = await retrieveChunks(documentIds, lastUser.content);
+      log("info", "chat.retrieved", {
+        requestId,
+        documentIds: documentIds.length,
+        chunks: chunks.length,
+      });
 
       const sources: Source[] = chunks.map(({ filename, pageNumber, chunkIndex, text, score }) => ({
         filename,
@@ -57,13 +82,23 @@ export async function POST(req: Request) {
         // existing assistant message (writing it first breaks useChat parsing).
         onFinish: () => {
           dataStream.writeMessageAnnotation({ type: "sources", sources });
+          log("info", "chat.ok", {
+            requestId,
+            sources: sources.length,
+            durationMs: Date.now() - startedAt,
+          });
         },
       });
       result.mergeIntoDataStream(dataStream);
     },
     onError: (error) => {
-      console.error("chat stream failed", error);
       const status = (error as { statusCode?: number })?.statusCode;
+      log("error", "chat.stream_failed", {
+        requestId,
+        status,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : String(error),
+      });
       if (status === 429) {
         return "The model is rate-limited (free-tier quota reached). Please wait a moment and try again.";
       }
