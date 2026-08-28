@@ -24,11 +24,12 @@ export interface ChatMessage {
 }
 
 export interface ChatRequest {
-  documentId: string;
+  documentIds: string[];
   messages: ChatMessage[];
 }
 
-export type Source = Omit<RetrievedChunk, "documentId" | "filename">;
+/** A cited chunk sent to the client. `filename` identifies its source document. */
+export type Source = Omit<RetrievedChunk, "documentId">;
 
 export interface ChatResponse {
   answer: string;

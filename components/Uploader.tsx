@@ -22,7 +22,14 @@ export interface UploadedDoc {
   chunkCount: number;
 }
 
-export function Uploader({ onUploaded }: { onUploaded: (doc: UploadedDoc) => void }) {
+export function Uploader({
+  onUploaded,
+  compact = false,
+}: {
+  onUploaded: (doc: UploadedDoc) => void;
+  /** Smaller dropzone used once one or more documents are already uploaded. */
+  compact?: boolean;
+}) {
   const [stage, setStage] = useState<Stage>("idle");
   const [message, setMessage] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,8 +73,9 @@ export function Uploader({ onUploaded }: { onUploaded: (doc: UploadedDoc) => voi
         }
 
         const doc = (await res.json()) as UploadResponse;
-        setStage("done");
         onUploaded(doc);
+        // Reset so the same uploader can immediately accept another PDF.
+        setStage("idle");
       } catch {
         setStage("error");
         setMessage("Something went wrong while processing the PDF.");
@@ -84,10 +92,18 @@ export function Uploader({ onUploaded }: { onUploaded: (doc: UploadedDoc) => voi
         type="button"
         disabled={busy}
         onClick={() => inputRef.current?.click()}
-        className="flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-brand-blue/40 bg-brand-blue-soft/40 px-6 py-10 text-center transition hover:border-brand-blue hover:bg-brand-blue-soft disabled:cursor-not-allowed disabled:opacity-60"
+        className={
+          compact
+            ? "flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-brand-blue/40 bg-brand-blue-soft/40 px-4 py-3 text-center text-sm transition hover:border-brand-blue hover:bg-brand-blue-soft disabled:cursor-not-allowed disabled:opacity-60"
+            : "flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-brand-blue/40 bg-brand-blue-soft/40 px-6 py-10 text-center transition hover:border-brand-blue hover:bg-brand-blue-soft disabled:cursor-not-allowed disabled:opacity-60"
+        }
       >
-        <span className="font-medium text-brand-blue">Click to upload a PDF</span>
-        <span className="text-sm text-muted">Text-based PDF · max 10 MB · 50 pages</span>
+        <span className="font-medium text-brand-blue">
+          {compact ? "+ Add another PDF" : "Click to upload a PDF"}
+        </span>
+        {!compact && (
+          <span className="text-sm text-muted">Text-based PDF · max 10 MB · 50 pages</span>
+        )}
       </button>
 
       <input

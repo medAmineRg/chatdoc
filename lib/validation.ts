@@ -28,7 +28,7 @@ export const chatMessageSchema = z
   .passthrough();
 
 export const chatSchema = z.object({
-  documentId: z.string().uuid(),
+  documentIds: z.array(z.string().uuid()).min(1).max(20),
   messages: z.array(chatMessageSchema).min(1),
 });
 

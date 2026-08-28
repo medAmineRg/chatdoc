@@ -8,18 +8,21 @@ export const DEFAULT_TOP_K = 5;
 export const CANDIDATE_MULTIPLIER = 4;
 
 /**
- * Retrieve the most relevant chunks to `question` within a document.
+ * Retrieve the most relevant chunks to `question` across one or more documents.
  *
- * Runs Atlas Vector Search (cosine) to pull a wider candidate set, then applies
- * hybrid re-ranking (dense vector + lexical, fused via RRF) to pick the final
- * top-k. The `$vectorSearchScore` is preserved so the frontend can display
- * source relevance (F4).
+ * Runs Atlas Vector Search (cosine) over the given `documentIds` to pull a wider
+ * candidate set, then applies hybrid re-ranking (dense vector + lexical, fused
+ * via RRF) to pick the final top-k. Searching several documents at once powers
+ * cross-document Q&A. The `$vectorSearchScore` is preserved so the frontend can
+ * display source relevance (F4).
  */
 export async function retrieveChunks(
-  documentId: string,
+  documentIds: string[],
   question: string,
   topK = DEFAULT_TOP_K,
 ): Promise<RetrievedChunk[]> {
+  if (documentIds.length === 0) return [];
+
   const queryVector = await embedQuery(question);
   const chunks = await getChunksCollection();
 
@@ -33,7 +36,7 @@ export async function retrieveChunks(
           queryVector,
           numCandidates: Math.max(candidateLimit * 20, 100),
           limit: candidateLimit,
-          filter: { documentId },
+          filter: { documentId: { $in: documentIds } },
         },
       },
       {

@@ -24,12 +24,16 @@ export function Sources({ sources }: { sources: Source[] }) {
         <ul className="mt-2 space-y-2">
           {sources.map((s) => (
             <li
-              key={s.chunkIndex}
+              key={`${s.filename}-${s.chunkIndex}`}
               className="rounded-md border border-brand-blue-soft bg-white p-2 text-xs"
             >
-              <div className="mb-1 flex items-center justify-between text-muted">
-                <span>{s.pageNumber === null ? "Page ?" : `Page ${s.pageNumber}`}</span>
-                <span className="rounded bg-brand-blue-soft px-1.5 py-0.5 font-medium text-brand-blue">
+              <div className="mb-1 flex items-center justify-between gap-2 text-muted">
+                <span className="truncate">
+                  <span className="font-medium text-ink/80">{s.filename}</span>
+                  {" · "}
+                  {s.pageNumber === null ? "Page ?" : `Page ${s.pageNumber}`}
+                </span>
+                <span className="shrink-0 rounded bg-brand-blue-soft px-1.5 py-0.5 font-medium text-brand-blue">
                   {(s.score * 100).toFixed(1)}%
                 </span>
               </div>

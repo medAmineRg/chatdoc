@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useChat } from "@ai-sdk/react";
 import type { Source } from "@/lib/api-types";
 import { Sources } from "@/components/Sources";
@@ -20,13 +21,19 @@ function sourcesOf(annotations: unknown): Source[] {
   return [];
 }
 
-export function ChatPanel({ documentId }: { documentId: string }) {
+export function ChatPanel({ documentIds }: { documentIds: string[] }) {
   const { messages, input, handleInputChange, handleSubmit, isLoading, error } = useChat({
     api: "/api/chat",
-    body: { documentId },
   });
 
   const busy = isLoading;
+  const noneSelected = documentIds.length === 0;
+
+  // Send the current selection with each request (selection changes at runtime,
+  // so passing it here avoids a stale value captured at hook init).
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    handleSubmit(e, { body: { documentIds } });
+  }
   const awaitingFirstToken = isLoading && messages[messages.length - 1]?.role === "user";
 
   return (
@@ -34,7 +41,9 @@ export function ChatPanel({ documentId }: { documentId: string }) {
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && (
           <p className="text-sm text-muted">
-            Ask a question about the document to get started.
+            {noneSelected
+              ? "Select at least one document to ask about."
+              : "Ask a question about the selected document(s) to get started."}
           </p>
         )}
 
@@ -62,18 +71,19 @@ export function ChatPanel({ documentId }: { documentId: string }) {
       </div>
 
       <form
-        onSubmit={handleSubmit}
+        onSubmit={onSubmit}
         className="flex items-center gap-2 border-t border-brand-blue-soft p-3"
       >
         <input
           value={input}
           onChange={handleInputChange}
-          placeholder="Ask about the document…"
-          className="flex-1 rounded-md border border-brand-blue-soft px-3 py-2 text-sm outline-none focus:border-brand-blue"
+          disabled={noneSelected}
+          placeholder={noneSelected ? "Select a document first…" : "Ask about the document…"}
+          className="flex-1 rounded-md border border-brand-blue-soft px-3 py-2 text-sm outline-none focus:border-brand-blue disabled:cursor-not-allowed disabled:bg-brand-blue-soft/30"
         />
         <button
           type="submit"
-          disabled={busy || input.trim().length === 0}
+          disabled={busy || noneSelected || input.trim().length === 0}
           className="rounded-md bg-brand-blue px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-navy disabled:cursor-not-allowed disabled:opacity-50"
         >
           Send

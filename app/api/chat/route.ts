@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return jsonError(400, "Invalid request", zodDetails(parsed.error));
   }
-  const { documentId, messages } = parsed.data;
+  const { documentIds, messages } = parsed.data;
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   if (!lastUser) {
@@ -37,9 +37,10 @@ export async function POST(req: Request) {
 
   return createDataStreamResponse({
     execute: async (dataStream) => {
-      const chunks = await retrieveChunks(documentId, lastUser.content);
+      const chunks = await retrieveChunks(documentIds, lastUser.content);
 
-      const sources: Source[] = chunks.map(({ pageNumber, chunkIndex, text, score }) => ({
+      const sources: Source[] = chunks.map(({ filename, pageNumber, chunkIndex, text, score }) => ({
+        filename,
         pageNumber,
         chunkIndex,
         text,

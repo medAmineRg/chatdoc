@@ -5,39 +5,82 @@ import { Uploader, type UploadedDoc } from "@/components/Uploader";
 import { ChatPanel } from "@/components/ChatPanel";
 
 export default function Home() {
-  const [doc, setDoc] = useState<UploadedDoc | null>(null);
+  const [docs, setDocs] = useState<UploadedDoc[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  function addDoc(doc: UploadedDoc) {
+    setDocs((prev) =>
+      prev.some((d) => d.documentId === doc.documentId) ? prev : [...prev, doc],
+    );
+    setSelectedIds((prev) => new Set(prev).add(doc.documentId));
+  }
+
+  function toggle(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function reset() {
+    setDocs([]);
+    setSelectedIds(new Set());
+  }
+
+  const selected = [...selectedIds];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-brand-blue">DocChat</h1>
         <p className="mt-1 text-muted">
-          Upload a PDF and ask questions about its content.
+          Upload one or more PDFs and ask questions across them.
         </p>
       </div>
 
-      {!doc && <Uploader onUploaded={setDoc} />}
-
-      {doc && (
+      {docs.length === 0 ? (
+        <Uploader onUploaded={addDoc} />
+      ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-brand-blue-soft bg-brand-blue-soft/40 p-3 text-sm">
-            <div>
-              <span className="font-medium text-ink">{doc.filename}</span>
-              <span className="text-muted">
-                {" "}
-                · {doc.pageCount} page{doc.pageCount > 1 ? "s" : ""} · {doc.chunkCount} chunks
+          <div className="space-y-3 rounded-lg border border-brand-blue-soft p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ink">
+                Documents ({selectedIds.size}/{docs.length} selected)
               </span>
+              <button
+                type="button"
+                onClick={reset}
+                className="text-sm text-brand-blue hover:underline"
+              >
+                Clear all
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setDoc(null)}
-              className="text-brand-blue hover:underline"
-            >
-              New document
-            </button>
+
+            <ul className="space-y-1.5">
+              {docs.map((d) => (
+                <li key={d.documentId}>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-brand-blue-soft/40">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(d.documentId)}
+                      onChange={() => toggle(d.documentId)}
+                      className="h-4 w-4 accent-brand-blue"
+                    />
+                    <span className="font-medium text-ink">{d.filename}</span>
+                    <span className="text-muted">
+                      · {d.pageCount} page{d.pageCount > 1 ? "s" : ""} · {d.chunkCount} chunks
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+
+            <Uploader onUploaded={addDoc} compact />
           </div>
 
-          <ChatPanel documentId={doc.documentId} />
+          <ChatPanel documentIds={selected} />
         </div>
       )}
     </div>
