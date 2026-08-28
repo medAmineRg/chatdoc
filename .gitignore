@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.env*
+
+# Confidential test subject — do not commit
+Test_Technique_FullStack_IA_Smartly.pdf
