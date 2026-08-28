@@ -1,0 +1,24 @@
+{
+  "en": {
+    "file": "docs/sample/en.pdf",
+    "filename": "en.pdf",
+    "questions": [
+      { "q": "How long is the standard warranty period?", "expect": "24 months", "answerable": true },
+      { "q": "What is Acme Robotics' flagship product?", "expect": "Atlas-7", "answerable": true },
+      { "q": "In what year was Acme Robotics founded?", "expect": "2011", "answerable": true },
+      { "q": "What are the customer support hours?", "expect": "9am", "answerable": true },
+      { "q": "What is the retail price of the Atlas-7?", "expect": "not in the document", "answerable": false }
+    ]
+  },
+  "fr": {
+    "file": "docs/sample/fr.pdf",
+    "filename": "fr.pdf",
+    "questions": [
+      { "q": "Quelle est la durée de la garantie standard ?", "expect": "24 mois", "answerable": true },
+      { "q": "Quel est le produit phare d'Acme Robotique ?", "expect": "Atlas-7", "answerable": true },
+      { "q": "En quelle année Acme Robotique a-t-elle été fondée ?", "expect": "2011", "answerable": true },
+      { "q": "Jusqu'à combien de minutes d'autonomie offre la batterie ?", "expect": "90", "answerable": true },
+      { "q": "Quel est le prix de vente de l'Atlas-7 ?", "expect": "pas dans le document", "answerable": false }
+    ]
+  }
+}
