@@ -14,12 +14,13 @@ import type { RetrievedChunk } from "@/lib/types";
 export const RRF_K = 60;
 
 /**
- * Split text into lowercased Unicode word tokens. Uses `\p{L}` (any letter) so
- * it works for Latin, French accents and Arabic script alike — no `[a-z]`
- * assumptions. Standalone punctuation is dropped.
+ * Split text into lowercased Unicode word tokens: runs of letters or digits.
+ * Uses `\p{L}`/`\p{N}` so it works for Latin, French accents and Arabic script
+ * alike (no `[a-z]` assumptions), and keeps numeric tokens so codes/amounts
+ * like "4200" stay matchable. Punctuation and whitespace are dropped.
  */
 export function tokenize(text: string): string[] {
-  const matches = text.toLocaleLowerCase().match(/\p{L}[\p{L}\p{N}]*/gu);
+  const matches = text.toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu);
   return matches ?? [];
 }
 
@@ -84,6 +85,14 @@ export function hybridRerank(
   const fused = reciprocalRankFusion([byVector, byLexical], k);
 
   return [...candidates]
-    .sort((a, b) => (fused.get(chunkId(b)) ?? 0) - (fused.get(chunkId(a)) ?? 0))
+    .sort((a, b) => {
+      const byFused = (fused.get(chunkId(b)) ?? 0) - (fused.get(chunkId(a)) ?? 0);
+      if (byFused !== 0) return byFused;
+      // On a fused tie (common with few candidates), prefer the stronger
+      // keyword match, then the stronger vector score.
+      const byLex = (lexical.get(chunkId(b)) ?? 0) - (lexical.get(chunkId(a)) ?? 0);
+      if (byLex !== 0) return byLex;
+      return b.score - a.score;
+    })
     .slice(0, topK);
 }
