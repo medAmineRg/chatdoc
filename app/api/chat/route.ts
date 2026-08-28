@@ -45,12 +45,16 @@ export async function POST(req: Request) {
         text,
         score,
       }));
-      dataStream.writeMessageAnnotation({ type: "sources", sources });
 
       const result = streamText({
         model: chatModel(),
         system: buildSystemPrompt(chunks),
         messages: convertToCoreMessages(messages),
+        // Write sources after the answer so the annotation attaches to an
+        // existing assistant message (writing it first breaks useChat parsing).
+        onFinish: () => {
+          dataStream.writeMessageAnnotation({ type: "sources", sources });
+        },
       });
       result.mergeIntoDataStream(dataStream);
     },
