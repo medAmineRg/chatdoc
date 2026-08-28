@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Uploader, type UploadedDoc } from "@/components/Uploader";
 import { ChatPanel } from "@/components/ChatPanel";
+import { AgentIcon } from "@/components/AgentIcon";
 
 export default function Home() {
   const [docs, setDocs] = useState<UploadedDoc[]>([]);
@@ -33,11 +34,18 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-brand-blue">DocChat</h1>
-        <p className="mt-1 text-muted">
-          Upload one or more PDFs and ask questions across them.
-        </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-sm">
+          <AgentIcon className="h-6 w-6" />
+        </span>
+        <div>
+          <h1 className="bg-brand-gradient bg-clip-text text-2xl font-bold text-transparent">
+            DocChat
+          </h1>
+          <p className="mt-0.5 text-muted">
+            Upload one or more PDFs and ask questions across them.
+          </p>
+        </div>
       </div>
 
       {docs.length === 0 ? (

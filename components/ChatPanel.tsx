@@ -4,6 +4,16 @@ import type { FormEvent } from "react";
 import { useChat } from "@ai-sdk/react";
 import type { Source } from "@/lib/api-types";
 import { Sources } from "@/components/Sources";
+import { AgentIcon } from "@/components/AgentIcon";
+
+/** Gradient avatar badge shown next to the assistant's replies. */
+function AgentAvatar() {
+  return (
+    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-gradient text-white shadow-sm">
+      <AgentIcon className="h-4 w-4" />
+    </span>
+  );
+}
 
 /** Pull the sources annotation (written by /api/chat) off a message. */
 function sourcesOf(annotations: unknown): Source[] {
@@ -47,24 +57,37 @@ export function ChatPanel({ documentIds }: { documentIds: string[] }) {
           </p>
         )}
 
-        {messages.map((m) => (
-          <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div className="max-w-[80%]">
-              <div
-                className={
-                  m.role === "user"
-                    ? "whitespace-pre-wrap rounded-lg bg-brand-blue px-3 py-2 text-sm text-white"
-                    : "whitespace-pre-wrap rounded-lg bg-brand-blue-soft px-3 py-2 text-sm text-ink"
-                }
-              >
-                {m.content}
+        {messages.map((m) => {
+          const isUser = m.role === "user";
+          return (
+            <div key={m.id} className={isUser ? "flex justify-end" : "flex justify-start gap-2"}>
+              {!isUser && <AgentAvatar />}
+              <div className="max-w-[80%]">
+                <div
+                  className={
+                    isUser
+                      ? "whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand-blue px-3 py-2 text-sm text-white"
+                      : "whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-brand-blue-soft px-3 py-2 text-sm text-ink"
+                  }
+                >
+                  {m.content}
+                </div>
+                {!isUser && <Sources sources={sourcesOf(m.annotations)} />}
               </div>
-              {m.role === "assistant" && <Sources sources={sourcesOf(m.annotations)} />}
+            </div>
+          );
+        })}
+
+        {awaitingFirstToken && (
+          <div className="flex justify-start gap-2">
+            <AgentAvatar />
+            <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-brand-blue-soft px-3 py-2.5">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-blue [animation-delay:-0.3s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-blue [animation-delay:-0.15s]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-brand-blue" />
             </div>
           </div>
-        ))}
-
-        {awaitingFirstToken && <p className="text-sm text-muted">Thinking…</p>}
+        )}
         {error && (
           <p className="text-sm text-red-600">{error.message || "Something went wrong. Please try again."}</p>
         )}
@@ -84,7 +107,7 @@ export function ChatPanel({ documentIds }: { documentIds: string[] }) {
         <button
           type="submit"
           disabled={busy || noneSelected || input.trim().length === 0}
-          className="rounded-md bg-brand-blue px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-navy disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-brand-gradient px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Send
         </button>

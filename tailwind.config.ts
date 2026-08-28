@@ -17,6 +17,11 @@ const config: Config = {
         ink: "#1A2233",
         muted: "#6B7280",
       },
+      backgroundImage: {
+        // Gradients built only from the brand palette.
+        "brand-gradient": "linear-gradient(135deg, #16244A 0%, #2B5CA8 100%)",
+        "brand-gradient-soft": "linear-gradient(135deg, #2B5CA8 0%, #EAF0FA 100%)",
+      },
     },
   },
   plugins: [],
