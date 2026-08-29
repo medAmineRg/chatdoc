@@ -8,6 +8,8 @@ Built for the Smartly.ai technical test. Stack: **Next.js 15 (App Router) +
 TypeScript (strict) + MongoDB Atlas Vector Search + Google Gemini**, deployed on
 Vercel.
 
+#### For readme file in french version look at [docs/README.fr.md](docs/README.fr.md)
+
 ---
 
 ## Architecture
@@ -43,15 +45,15 @@ Vercel.
 
 ## Tech choices & trade-offs
 
-| Area | Choice | Why / trade-off |
-|------|--------|-----------------|
-| Framework | Next.js 15 App Router | Frontend + serverless API in one repo, first-class streaming, zero-config Vercel deploy. |
-| Language | TypeScript, `strict` + `noUncheckedIndexedAccess` | Catches the class of bugs (undefined array access) that RAG glue code is prone to. |
-| PDF parsing | `unpdf`, **client-side** | Serverless-safe pdf.js build, no worker setup. Trade-off: no server-side control of parsing, but avoids the body/timeout limits above. |
-| Embeddings | Gemini `gemini-embedding-001`, reduced to 768-dim | Generous free tier; one provider for embeddings + generation. Task-type-aware (RETRIEVAL_DOCUMENT vs RETRIEVAL_QUERY) for better retrieval. |
-| Vector store | MongoDB Atlas Vector Search | One store for documents **and** vectors — no separate vector DB to sync. `$vectorSearch` returns the cosine score directly, which we surface as sources. |
-| LLM | Gemini `gemini-flash-latest` via Vercel AI SDK | Fast, cheap, strong enough for grounded Q&A; AI SDK gives token streaming with minimal plumbing. Model is env-overridable. |
-| Validation | Zod | Runtime validation at the API boundary → structured errors. |
+| Area         | Choice                                            | Why / trade-off                                                                                                                                          |
+| ------------ | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework    | Next.js 15 App Router                             | Frontend + serverless API in one repo, first-class streaming, zero-config Vercel deploy.                                                                 |
+| Language     | TypeScript, `strict` + `noUncheckedIndexedAccess` | Catches the class of bugs (undefined array access) that RAG glue code is prone to.                                                                       |
+| PDF parsing  | `unpdf`, **client-side**                          | Serverless-safe pdf.js build, no worker setup. Trade-off: no server-side control of parsing, but avoids the body/timeout limits above.                   |
+| Embeddings   | Gemini `gemini-embedding-001`, reduced to 768-dim | Generous free tier; one provider for embeddings + generation. Task-type-aware (RETRIEVAL_DOCUMENT vs RETRIEVAL_QUERY) for better retrieval.              |
+| Vector store | MongoDB Atlas Vector Search                       | One store for documents **and** vectors — no separate vector DB to sync. `$vectorSearch` returns the cosine score directly, which we surface as sources. |
+| LLM          | Gemini `gemini-flash-latest` via Vercel AI SDK    | Fast, cheap, strong enough for grounded Q&A; AI SDK gives token streaming with minimal plumbing. Model is env-overridable.                               |
+| Validation   | Zod                                               | Runtime validation at the API boundary → structured errors.                                                                                              |
 
 **Serverless connection handling:** MongoDB uses persistent TCP connections,
 which fight the serverless model (each cold start can exhaust the pool). We cache
@@ -85,27 +87,53 @@ token; the source chunks (page + score + preview) are shown alongside it.
 ## API
 
 ### `POST /api/upload`
+
 Request:
+
 ```json
 { "filename": "report.pdf", "pages": [{ "pageNumber": 1, "text": "…" }] }
 ```
+
 Response `200`:
+
 ```json
-{ "documentId": "uuid", "filename": "report.pdf", "pageCount": 3, "chunkCount": 7 }
+{
+  "documentId": "uuid",
+  "filename": "report.pdf",
+  "pageCount": 3,
+  "chunkCount": 7
+}
 ```
+
 Errors: `400` invalid body, `413` too many pages / too large, `429` rate limited
 (with `Retry-After`), `500` pipeline failure.
 
 ### `POST /api/chat`
+
 Request (`documentIds` may list one or more uploaded documents):
+
 ```json
 { "documentIds": ["uuid"], "messages": [{ "role": "user", "content": "…" }] }
 ```
+
 Response: an AI SDK **data stream** (SSE). The assistant answer streams as text;
 the retrieved sources are attached as a message annotation:
+
 ```json
-{ "type": "sources", "sources": [{ "filename": "report.pdf", "pageNumber": 2, "chunkIndex": 4, "text": "…", "score": 0.83 }] }
+{
+  "type": "sources",
+  "sources": [
+    {
+      "filename": "report.pdf",
+      "pageNumber": 2,
+      "chunkIndex": 4,
+      "text": "…",
+      "score": 0.83
+    }
+  ]
+}
 ```
+
 Errors: `400` invalid body (with per-field `details`), `429` rate limited (with
 `Retry-After`), `500` generation failure.
 
@@ -123,11 +151,11 @@ npm run dev                  # http://localhost:3000
 
 Environment variables:
 
-| Name | Description |
-|------|-------------|
-| `MONGODB_URI` | Atlas connection string |
-| `MONGODB_DB` | Database name (optional, defaults to `docchat`) |
-| `GEMINI_API_KEY` | Google Gemini API key |
+| Name             | Description                                     |
+| ---------------- | ----------------------------------------------- |
+| `MONGODB_URI`    | Atlas connection string                         |
+| `MONGODB_DB`     | Database name (optional, defaults to `docchat`) |
+| `GEMINI_API_KEY` | Google Gemini API key                           |
 
 ### Atlas Vector Search index (required)
 
@@ -138,7 +166,12 @@ Create a Vector Search index named **`vector_index`** on the `chunks` collection
 ```json
 {
   "fields": [
-    { "type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine" },
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 768,
+      "similarity": "cosine"
+    },
     { "type": "filter", "path": "documentId" }
   ]
 }
@@ -168,13 +201,13 @@ node --env-file=.env.local scripts/create-index.mjs
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start the dev server |
-| `npm run build` | Production build |
+| Command             | Description             |
+| ------------------- | ----------------------- |
+| `npm run dev`       | Start the dev server    |
+| `npm run build`     | Production build        |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
-| `npm run lint` | Next.js lint |
-| `npm test` | Unit tests (vitest) |
+| `npm run lint`      | Next.js lint            |
+| `npm test`          | Unit tests (vitest)     |
 
 ---
 
