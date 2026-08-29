@@ -8,7 +8,7 @@ Built for the Smartly.ai technical test. Stack: **Next.js 15 (App Router) +
 TypeScript (strict) + MongoDB Atlas Vector Search + Google Gemini**, deployed on
 Vercel.
 
-#### For readme file in french version look at [docs/README.fr.md](docs/README.fr.md)
+#### For readme file in french version look at [docs/README.fr.md](README.fr.md)
 
 ---
 
